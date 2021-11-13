@@ -10,9 +10,6 @@ using namespace vcl;
 
 
 
-
-
-
 void scene_model::frame_draw(std::map<std::string,GLuint>& , scene_structure& scene, gui_structure& )
 {
     float dt = 0.02f * timer.scale;
@@ -32,20 +29,7 @@ void scene_model::compute_time_step(float dt)
 {
     // Set forces
     const size_t N = particles.size();
-    for(size_t k=0; k<N; ++k)
-        particles[k].f = vec3(0,-9.81f,0);
 
-
-    // Integrate position and speed of particles through time
-    for(size_t k=0; k<N; ++k) {
-        particle_structure& particle = particles[k];
-        vec3& v = particle.v;
-        vec3& p = particle.p;
-        vec3 const& f = particle.f;
-
-        v = (1-0.9f*dt) * v + dt * f; // gravity + friction force
-        p = p + dt * v;
-    }
 
     // Collisions with cube
     // ... to do
@@ -56,11 +40,24 @@ void scene_model::compute_time_step(float dt)
     {
         particle_structure& sphere = particles[k1];
         vec3& v1 = sphere.v;
-        if (norm(v1) < 0.01)
-            return;
-        auto p1 = sphere.p;
+        vec3& p1 = sphere.p;
         auto r1 = sphere.r;
+        float friction = 0.7;
 
+
+        //GRAVITY
+        sphere.f = vec3(0,-9.81f,0);
+
+        vec3 const& f = sphere.f;
+
+        v1 = (1-0.9*dt) * v1 + dt * f; // gravity + friction force
+        //v1 *= friction;
+        p1 = p1 + dt * v1;
+   
+
+
+
+        //SPHERE COLLISION 
         for (size_t k2 = k1 + 1; k2 < N; k2++)
         {
             particle_structure& sphere2 = particles[k2];
@@ -68,12 +65,17 @@ void scene_model::compute_time_step(float dt)
             auto r2 = sphere2.r;
             auto p2 = sphere2.p;
 
-            std::cout << "p: " << p1 << ", " << p2 << "\n";
+            
+            //std::cout << "test" << "\n";
+            if (norm(v2) + norm(v1) < 0.000001){
+                  //std::cout << norm(v2) + norm(v1) << "\n";
+                  //std::cout.flush();
+                  v2 *= 0.7;
+                  v1 *= 0.7;
+            }
 
             //auto pnorm = std::sqrt(dot(p1 - p2, p1 - p2));
             auto u = (p1 - p2) / norm(p1 - p2);
-            std::cout << "norm: " << norm(p1 - p2) << "\n";
-            std::cout << "u: " << u << "\n";
             auto v1n = dot(v1, u) * u;
             auto v2n = dot(v2, -u) * -u;
             auto v1t = v1 - (v1n);
@@ -81,24 +83,29 @@ void scene_model::compute_time_step(float dt)
 
             if (norm(p1 - p2) <= r1 + r2)
             {
-                std::cout << v1n << ", " << v2n;
-                v1 = 0.9 * v1t + 0.9 * v2n;
-                v2 = 0.9 * v2t + 0.9 * v1n;
+                //v1 = 0.9 * v1t + 0.9 * v2n;
+                //v2 = 0.9 * v2t + 0.9 * v1n;
+                v1 += friction * (dot(v2 - v1, u) * u);
+                v2 -= friction * (dot(v2 - v1, u) * u);
+                float d = r1 + r2 - norm(p1 - p2);
+                sphere.p += d * u;
             }
 
         }
 
+
+        if (norm(v1) < 0.0001)
+            friction = 0.1;
+        //BORDERS COLLISION
         for(size_t i = 0; i < 6; i++)
         {
             auto n = normals[i];
             auto pi = sphere.p;
-            std::cout << "pi: " << pi << "\n";
             float detection = dot((pi - points[i]), n);
             if (detection <= sphere.r) {
-                std::cout << "collision\n";
                 float vn = dot(v1, n);
                 //vec3 vt = v - (vn * n);
-                v1 = v1 - (2 * vn * n) * 0.99;
+                v1 = (v1 - (2 * vn * n)) * friction;
                 float d = sphere.r - detection;
                 sphere.p += d * n;
                 //v = -vn * n + vt;
