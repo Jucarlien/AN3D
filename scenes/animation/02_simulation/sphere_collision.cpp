@@ -36,6 +36,7 @@ void scene_model::compute_time_step(float dt, scene_structure& scene)
     static const std::vector<vec3> normals = {{1,0,0},{0,1,0},{0,0,1},{-1,0,0},{0,-1,0},{0,0,-1}};
     static const std::vector<vec3> points = {{-1,0,0},{0,-1,0},{0,0,-1},{1,0,0},{0,1,0},{0,0,1}};
 
+    vec3 trans_vect = update_translation(scene);
     for(size_t k1=0; k1 < N; k1++)
     {
         particle_structure& sphere = particles[k1];
@@ -45,7 +46,8 @@ void scene_model::compute_time_step(float dt, scene_structure& scene)
         float friction = 0.7;
 
 
-
+        //apply translation
+        p1 -= trans_vect * 0.8;
    
 
 
@@ -119,7 +121,7 @@ void scene_model::compute_time_step(float dt, scene_structure& scene)
     // Collisions between spheres
     // ... to do
 
-    //update_translation(scene);
+    auto truc = update_translation(scene);
 }
 
 
@@ -142,9 +144,16 @@ vec3 scene_model::update_gravity(scene_structure& scene){
 
 }
 
+
+vec3 prev_trans = {0,0,0};
+
 vec3 scene_model::update_translation(scene_structure& scene){
-    //vec3 trans = scene.camera.translation;
-    //std::cout<< trans << "\n\n";
+    vec3 trans = scene.camera.translation;
+    if (trans[0] == prev_trans[0] && trans[1] == prev_trans[1] && trans[2] == prev_trans[2])
+        return vec3(0,0,0);
+    vec3 temp = prev_trans;
+    prev_trans = trans;
+    return trans - temp;
 }
 
 
